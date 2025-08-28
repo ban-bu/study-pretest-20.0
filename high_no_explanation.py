@@ -46,13 +46,28 @@ API_KEYS = [
 ]
 BASE_URL = "https://api.deepbricks.ai/v1/"
 
-# GPT-4o-mini API配置 - 同样使用多个密钥
+# GPT-4o-mini API配置 - 多个密钥用于高并发
 GPT4O_MINI_API_KEYS = [
     "sk-lNVAREVHjj386FDCd9McOL7k66DZCUkTp6IbV0u9970qqdlg",
     "sk-y8x6LH0zdtyQncT0aYdUW7eJZ7v7cuKTp90L7TiK3rPu3fAg",
     "sk-Kp59pIj8PfqzLzYaAABh2jKsQLB0cUKU3n8l7TIK3rpU61QG", 
     "sk-KACPocnavR6poutXUaj7HxsqUrxvcV808S2bv0U9974Ec83g",
-    "sk-YknuN0pb6fKBOP6xFOqAdeeqhoYkd1cEl9380vC5HHeC2B30"
+    "sk-YknuN0pb6fKBOP6xFOqAdeeqhoYkd1cEl9380vC5HHeC2B30",
+    "sk-qgTzuaTw8LA8aaMuKHGNKTzklfILd2O4f3J80Vc1e716UNRG",
+    "sk-NomBvwwNzPxLsQJYPrDhCUMoxe5hD2O4f4380VC3ibspPV50",
+    "sk-J1STQi1Z7MVWZCkCXMhUTDtgYvuED2O4F4j80vc1E716uNt0",
+    "sk-TB2wg0E6NAUfs3cxuuO7MmB1xHtrd2O4f5380vc3ibSPPv8G",
+    "sk-JnAylOqL4tRKkdoNqNuUyzOGsqt8d2O4f5380vc3IBsPPv9G",
+    "sk-b21I1MNl27hobxJ4B0ZFzCokwVF2d2O4f5B80VC1e716unVG",
+    "sk-d5XpJF2NMWWdq7ZEJQLyP0AojgE1D2o4F5j80VC3ibSPPVC0",
+    "sk-fMFkcOX0Pee9ecGWa73fdHU6tSjPD2o4F5J80Vc1e716uO10",
+    "sk-BxN7ncNBMmyoy9FiRhgNkRrAegELD2O4F5r80vC3ibSpPvDG",
+    "sk-Eun0GvNO0xUWm7EfprCGPukeTSHJD2O4F6380VC1E716Uo2g",
+    "sk-c4rdtdCaZ4XZt92zKF8WiqGuf95Gd2o4F6B80vc3iBsPpVfg",
+    "sk-QMCiQzJW0iMr3z3vr7FPxTWvfuQwd2o4hJr80vC1e716v060",
+    "sk-b5eYKA5L5FPtoHFY3IhoJcE9cxwid2o4HgJ80vC3iBsPq7d0",
+    "sk-OwECm6sctSh4lc8ZjMazIgKbW369D2O4hgb80vC3ibSPQ7bg",
+    "sk-2G1gAKU00wK7Rt9cxJdErScYkNtSd2o4Hgb80vc3IBspQ7Ag"
 ]
 GPT4O_MINI_BASE_URL = "https://api.deepbricks.ai/v1/"
 
@@ -62,7 +77,17 @@ DASHSCOPE_API_KEYS = [
     "sk-787d18eec7c2403ca5bcf4595cfff038", 
     "sk-51a3e204ed83484db3b44e12d81c143e",
     "sk-3f579673c4724c06a680f80246c2c90e",
-    "sk-4ff1a99e019d4a25bef0762e716a55d5"
+    "sk-4ff1a99e019d4a25bef0762e716a55d5",
+    "sk-4f82c6e2097440f8adb2ef688c7c7551",
+    "sk-0d467c953af4433aa8bda24d5f4cc855",
+    "sk-88a12822ab324befb510b4182cf84940",
+    "sk-fc2dc196273342829029226faf8a6e64",
+    "sk-6c561648158845498bd79405450ebcd1",
+    "sk-b02c07bd5ba54037999d2f0980d4042a",
+    "sk-7d8815e45a164bc09ed8f2a346ed00e1",
+    "sk-39e94c32f421425b9221eae1b7f68918",
+    "sk-551f4ccb2ad647a6834865732d42edcb",
+    "sk-cdbe9b620dc04666aaf50fd44d8a756e"
 ]
 
 # API密钥轮询计数器
@@ -188,7 +213,10 @@ def convert_svg_to_png(svg_content):
 DEFAULT_DESIGN_COUNT = 20  # 可以设置为1, 3, 5, 15, 20，分别对应原来的low, medium, high, ultra-high
 
 def get_ai_design_suggestions(user_preferences=None):
-    """Get design suggestions from GPT-4o-mini with more personalized features"""
+    """Get design suggestions from GPT-4o-mini with more personalized features
+    
+    使用轮询机制从20个GPT-4o API密钥中选择，支持最高并发设计建议生成
+    """
     client = OpenAI(api_key=get_next_gpt4o_api_key(), base_url=GPT4O_MINI_BASE_URL)
     
     # Default prompt if no user preferences provided
@@ -314,7 +342,7 @@ def is_valid_logo(image, min_colors=3, min_non_transparent_pixels=1000):
 def generate_vector_image(prompt, background_color=None, max_retries=3):
     """Generate a vector-style logo with transparent background using DashScope API with validation and retry
     
-    使用轮询机制从5个DashScope API密钥中选择，支持并行生成提高效率
+    使用轮询机制从15个DashScope API密钥中选择，支持高并发并行生成提高效率
     """
     
     # 构建矢量图logo专用的提示词
@@ -751,8 +779,8 @@ def generate_complete_design(design_prompt, variation_id=None):
 
 def generate_single_design(design_index):
     try:
-        # 添加小的随机延迟，避免Railway环境下所有线程同时发起API请求
-        time.sleep(random.uniform(0.5, 2.0))
+        # 添加小的固定延迟，避免所有线程同时发起API请求
+        time.sleep(0.2)
         
         # 为每个设计添加轻微的提示词变化，确保设计多样性
         design_variations = [
@@ -815,8 +843,8 @@ def generate_multiple_designs(design_prompt, count=1):
     
     designs = []
     
-    # 创建线程池，限制最大线程数以适应Railway部署环境
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(count, 5)) as executor:
+    # 创建线程池，现在支持最高并发（20个线程）
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(count, 20)) as executor:
         # 提交所有任务
         future_to_id = {executor.submit(generate_single_design, i): i for i in range(count)}
         
@@ -1046,7 +1074,7 @@ def show_high_recommendation_without_explanation():
                     
                     # 创建进度条和状态消息在输入框下方
                     progress_bar = progress_area.progress(0)
-                    message_area.info(f"AI is generating {design_count} unique design options for you. This may take about 2-3 minutes (generating in batches of 5). Please do not refresh the page or close the browser. Thank you for your patience! ♪(･ω･)ﾉ")
+                    message_area.info(f"AI is generating {design_count} unique design options for you. This may take about 1-3 minutes (maximum concurrency: 20 threads + 35 API keys total). Please do not refresh the page or close the browser. Thank you for your patience! ♪(･ω･)ﾉ")
                     # 记录开始时间
                     start_time = time.time()
                     
@@ -1080,8 +1108,8 @@ def show_high_recommendation_without_explanation():
                             progress_bar.progress(progress)
                             message_area.info(f"Generated {completed_count}/{design_count} designs...")
                         
-                        # 使用线程池并行生成多个设计，限制线程数以适应Railway部署环境
-                        max_workers = min(design_count, 5)  # 限制最大线程数为5，适应Railway资源限制
+                        # 使用线程池并行生成多个设计，现在支持最高并发
+                        max_workers = min(design_count, 20)  # 增加最大线程数为20，利用更多API密钥
                         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                             # 提交所有任务
                             future_to_id = {executor.submit(generate_single_safely, i): i for i in range(design_count)}
