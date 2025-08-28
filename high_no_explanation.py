@@ -36,6 +36,7 @@ except ImportError:
     st.warning("DashScope not installed, will use OpenAI DALL-E as fallback")
 
 # API配置信息 - 多个API密钥用于增强并发能力
+# DALL-E API密钥（目前未使用，保留备用）
 API_KEYS = [
     "sk-lNVAREVHjj386FDCd9McOL7k66DZCUkTp6IbV0u9970qqdlg",
     "sk-y8x6LH0zdtyQncT0aYdUW7eJZ7v7cuKTp90L7TiK3rPu3fAg", 
@@ -55,12 +56,19 @@ GPT4O_MINI_API_KEYS = [
 ]
 GPT4O_MINI_BASE_URL = "https://api.deepbricks.ai/v1/"
 
-# 阿里云DashScope API配置
-DASHSCOPE_API_KEY = "sk-51a3e204ed83484db3b44e12d81c143e"
+# 阿里云DashScope API配置 - 多个密钥用于增强并发能力
+DASHSCOPE_API_KEYS = [
+    "sk-1a19e43ed59443ae86c39041a194c17c",
+    "sk-787d18eec7c2403ca5bcf4595cfff038", 
+    "sk-51a3e204ed83484db3b44e12d81c143e",
+    "sk-3f579673c4724c06a680f80246c2c90e",
+    "sk-4ff1a99e019d4a25bef0762e716a55d5"
+]
 
 # API密钥轮询计数器
 _api_key_counter = 0
 _gpt4o_api_key_counter = 0
+_dashscope_api_key_counter = 0
 _api_lock = threading.Lock()
 
 def get_next_api_key():
@@ -77,6 +85,14 @@ def get_next_gpt4o_api_key():
     with _api_lock:
         key = GPT4O_MINI_API_KEYS[_gpt4o_api_key_counter % len(GPT4O_MINI_API_KEYS)]
         _gpt4o_api_key_counter += 1
+        return key
+
+def get_next_dashscope_api_key():
+    """获取下一个DashScope API密钥（轮询方式）"""
+    global _dashscope_api_key_counter
+    with _api_lock:
+        key = DASHSCOPE_API_KEYS[_dashscope_api_key_counter % len(DASHSCOPE_API_KEYS)]
+        _dashscope_api_key_counter += 1
         return key
 
 def make_background_transparent(image, threshold=100):
@@ -169,7 +185,7 @@ def convert_svg_to_png(svg_content):
         return None
 
 # 设置默认生成的设计数量，取代UI上的选择按钮
-DEFAULT_DESIGN_COUNT = 15  # 可以设置为1, 3, 5, 15，分别对应原来的low, medium, high
+DEFAULT_DESIGN_COUNT = 20  # 可以设置为1, 3, 5, 15, 20，分别对应原来的low, medium, high, ultra-high
 
 def get_ai_design_suggestions(user_preferences=None):
     """Get design suggestions from GPT-4o-mini with more personalized features"""
@@ -296,7 +312,10 @@ def is_valid_logo(image, min_colors=3, min_non_transparent_pixels=1000):
         return False
 
 def generate_vector_image(prompt, background_color=None, max_retries=3):
-    """Generate a vector-style logo with transparent background using DashScope API with validation and retry"""
+    """Generate a vector-style logo with transparent background using DashScope API with validation and retry
+    
+    使用轮询机制从5个DashScope API密钥中选择，支持并行生成提高效率
+    """
     
     # 构建矢量图logo专用的提示词
     vector_style_prompt = f"""创建一个矢量风格的logo设计: {prompt}
@@ -331,8 +350,12 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
             else:
                 retry_prompt = vector_style_prompt
             
+            # 获取下一个DashScope API密钥用于当前请求
+            current_api_key = get_next_dashscope_api_key()
+            print(f'使用DashScope API密钥: {current_api_key[:20]}...{current_api_key[-10:]}')
+            
             rsp = ImageSynthesis.call(
-                api_key=DASHSCOPE_API_KEY,
+                api_key=current_api_key,
                 model="wanx2.0-t2i-turbo",
                 prompt=retry_prompt,
                 n=1,
@@ -735,9 +758,24 @@ def generate_single_design(design_index):
         design_variations = [
             "",  # 原始提示词
             "modern and minimalist",
-            "colorful and vibrant",
+            "colorful and vibrant", 
             "vintage and retro",
-            "elegant and simple"
+            "elegant and simple",
+            "bold and edgy",
+            "soft and feminine",
+            "urban streetwear",
+            "artistic and creative",
+            "sporty and athletic",
+            "professional and classic",
+            "playful and fun",
+            "dark and mysterious",
+            "bright and cheerful",
+            "geometric and abstract",
+            "nature-inspired",
+            "tech and futuristic",
+            "handcrafted and artisanal", 
+            "luxury and premium",
+            "casual everyday"
         ]
         
         # 选择合适的变化描述词
@@ -823,8 +861,10 @@ def show_high_recommendation_without_explanation():
             st.session_state.recommendation_level = "medium"
         elif DEFAULT_DESIGN_COUNT == 5:
             st.session_state.recommendation_level = "high"
-        else:  # 15或其他值
+        elif DEFAULT_DESIGN_COUNT == 15:
             st.session_state.recommendation_level = "ultra-high"
+        else:  # 20或其他值
+            st.session_state.recommendation_level = "maximum"
     if 'generated_designs' not in st.session_state:
         st.session_state.generated_designs = []
     if 'selected_design_index' not in st.session_state:
@@ -954,7 +994,7 @@ def show_high_recommendation_without_explanation():
         st.markdown("""
         <div style="margin-bottom: 15px; padding: 10px; background-color: #f0f2f6; border-radius: 5px;">
         <p style="margin: 0; font-size: 14px;">Enter three keywords to describe your ideal T-shirt design. 
-        Our AI will combine these features to create fifteen unique design options for you.</p>
+        Our AI will combine these features to create twenty unique design options for you.</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -1006,7 +1046,7 @@ def show_high_recommendation_without_explanation():
                     
                     # 创建进度条和状态消息在输入框下方
                     progress_bar = progress_area.progress(0)
-                    message_area.info(f"AI is generating {design_count} unique design options for you. This may take about 5-8 minutes (generating in batches of 5). Please do not refresh the page or close the browser. Thank you for your patience! ♪(･ω･)ﾉ")
+                    message_area.info(f"AI is generating {design_count} unique design options for you. This may take about 6-10 minutes (generating in batches of 5). Please do not refresh the page or close the browser. Thank you for your patience! ♪(･ω･)ﾉ")
                     # 记录开始时间
                     start_time = time.time()
                     
