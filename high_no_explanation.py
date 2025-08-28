@@ -23,6 +23,7 @@ import json
 import concurrent.futures
 import time
 import threading
+import random
 # 导入阿里云DashScope文生图API
 from http import HTTPStatus
 from urllib.parse import urlparse, unquote
@@ -359,7 +360,7 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                         else:
                             print(f"第{attempt + 1}次生成的logo未通过验证，准备重试...")
                             if attempt < max_retries - 1:
-                                time.sleep(1)  # 短暂等待后重试
+                                time.sleep(3)  # 增加等待时间，适应Railway环境
                                 continue
                             else:
                                 print("所有重试都失败，返回最后一次生成的logo")
@@ -373,7 +374,7 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                       (rsp.status_code, rsp.code, rsp.message))
                 if attempt < max_retries - 1:
                     print(f"第{attempt + 1}次调用失败，准备重试...")
-                    time.sleep(2)  # 等待后重试
+                    time.sleep(5)  # 增加等待时间，适应Railway环境
                     continue
                 else:
                     st.error(f"DashScope API调用失败: {rsp.message}")
@@ -382,7 +383,7 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
             print(f"第{attempt + 1}次DashScope调用出错: {e}")
             if attempt < max_retries - 1:
                 print("准备重试...")
-                time.sleep(2)
+                time.sleep(5)  # 增加等待时间，适应Railway环境
                 continue
             else:
                 st.error(f"DashScope API调用错误: {e}")
@@ -727,6 +728,9 @@ def generate_complete_design(design_prompt, variation_id=None):
 
 def generate_single_design(design_index):
     try:
+        # 添加小的随机延迟，避免Railway环境下所有线程同时发起API请求
+        time.sleep(random.uniform(0.5, 2.0))
+        
         # 为每个设计添加轻微的提示词变化，确保设计多样性
         design_variations = [
             "",  # 原始提示词
@@ -773,8 +777,8 @@ def generate_multiple_designs(design_prompt, count=1):
     
     designs = []
     
-    # 创建线程池
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(count, 10)) as executor:
+    # 创建线程池，限制最大线程数以适应Railway部署环境
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(count, 5)) as executor:
         # 提交所有任务
         future_to_id = {executor.submit(generate_single_design, i): i for i in range(count)}
         
@@ -1002,7 +1006,7 @@ def show_high_recommendation_without_explanation():
                     
                     # 创建进度条和状态消息在输入框下方
                     progress_bar = progress_area.progress(0)
-                    message_area.info(f"AI is generating {design_count} unique design options for you. This may take about 2-3 minutes. Please do not refresh the page or close the browser. Thank you for your patience! ♪(･ω･)ﾉ")
+                    message_area.info(f"AI is generating {design_count} unique design options for you. This may take about 5-8 minutes (generating in batches of 5). Please do not refresh the page or close the browser. Thank you for your patience! ♪(･ω･)ﾉ")
                     # 记录开始时间
                     start_time = time.time()
                     
@@ -1036,8 +1040,9 @@ def show_high_recommendation_without_explanation():
                             progress_bar.progress(progress)
                             message_area.info(f"Generated {completed_count}/{design_count} designs...")
                         
-                        # 使用线程池并行生成多个设计
-                        with concurrent.futures.ThreadPoolExecutor(max_workers=design_count) as executor:
+                        # 使用线程池并行生成多个设计，限制线程数以适应Railway部署环境
+                        max_workers = min(design_count, 5)  # 限制最大线程数为5，适应Railway资源限制
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                             # 提交所有任务
                             future_to_id = {executor.submit(generate_single_safely, i): i for i in range(design_count)}
                             
