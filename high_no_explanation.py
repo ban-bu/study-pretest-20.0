@@ -1046,7 +1046,7 @@ def show_high_recommendation_without_explanation():
                     
                     # 创建进度条和状态消息在输入框下方
                     progress_bar = progress_area.progress(0)
-                    message_area.info(f"AI is generating {design_count} unique design options for you. This may take about 6-10 minutes (generating in batches of 5). Please do not refresh the page or close the browser. Thank you for your patience! ♪(･ω･)ﾉ")
+                    message_area.info(f"AI is generating {design_count} unique design options for you. This may take about 2-3 minutes (generating in batches of 5). Please do not refresh the page or close the browser. Thank you for your patience! ♪(･ω･)ﾉ")
                     # 记录开始时间
                     start_time = time.time()
                     
